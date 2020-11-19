@@ -1,0 +1,73 @@
+# Volume deployment
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: task-pv-volume
+  labels:
+    type: local
+spec:
+  storageClassName: manual
+  capacity:
+    storage: 1Gi
+  accessModes:
+    - ReadWriteOnce
+  hostPath:
+    path: "/mnt/data"
+---
+# Volome claim deployment
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: task-pv-claim
+spec:
+  storageClassName: manual
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 1Gi
+---
+# Node deployment
+apiVersion: v1
+kind: Service
+metadata:
+  name: pv
+spec:
+  selector:
+    app: pv  
+  ports:
+   - protocol: TCP
+     port: 80
+     targetPort: 80
+  type: NodePort
+---
+# Pods deployment 
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pv-deployment
+  labels:
+    app: pv
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: pv
+  template:
+    metadata:
+      labels:
+        app: pv
+    spec:
+      volumes:
+        - name: task-pv-storage
+          persistentVolumeClaim:
+            claimName: task-pv-claim
+      containers:
+      - name: task-pv-container
+        image: nginx:latest
+        ports:
+         - containerPort: 80
+           name: "http-server"
+        volumeMounts:
+          - mountPath: "/usr/share/nginx/html"
+            name: task-pv-storage
